@@ -1,4 +1,5 @@
-import ReactECharts from 'echarts-for-react'
+import ReactEChartsCore from 'echarts-for-react/lib/core'
+import echarts from '../echarts-core'
 
 const BASE_OPTS = {
   backgroundColor: 'transparent',
@@ -21,37 +22,40 @@ function mergeOpts(opts) {
 
 export function BarChart({ option, style = { height: 220 } }) {
   return (
-    <ReactECharts
+    <ReactEChartsCore
+      echarts={echarts}
       option={mergeOpts(option)}
       style={style}
-      opts={{ renderer: 'svg' }}
+      opts={{ renderer: 'canvas' }}
     />
   )
 }
 
 export function DonutChart({ option, style = { height: 220 } }) {
   return (
-    <ReactECharts
+    <ReactEChartsCore
+      echarts={echarts}
       option={mergeOpts({
         legend: { bottom: 0, left: 'center', textStyle: { color: '#64748b', fontSize: 12 } },
         tooltip: { trigger: 'item', backgroundColor: '#0f172a', borderColor: '#1e293b', textStyle: { color: '#e2e8f0', fontSize: 12 }, borderRadius: 6, padding: [8, 12] },
         ...option,
       })}
       style={style}
-      opts={{ renderer: 'svg' }}
+      opts={{ renderer: 'canvas' }}
     />
   )
 }
 
 export function HorizontalBarChart({ option, style = { height: 180 } }) {
   return (
-    <ReactECharts
+    <ReactEChartsCore
+      echarts={echarts}
       option={mergeOpts({
         grid: { top: 10, right: 80, bottom: 24, left: 100, containLabel: false },
         ...option,
       })}
       style={style}
-      opts={{ renderer: 'svg' }}
+      opts={{ renderer: 'canvas' }}
     />
   )
 }

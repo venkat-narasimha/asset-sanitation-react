@@ -3,12 +3,13 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  base: './',
-  build: {
-    outDir: 'dist',
-    emptyOutDir: true,
-  },
+  base: '/asset-sanitation/',
   server: {
-    port: 5173,
+    proxy: {
+      '/api': {
+        target: 'http://erp_custom_apps_api:8000',
+        changeOrigin: true,
+      },
+    },
   },
 })

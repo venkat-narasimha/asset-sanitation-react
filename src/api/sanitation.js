@@ -1,141 +1,224 @@
-const API_BASE = 'https://pbapps.duckdns.org/api/v1';
+const API = '/api/v1';
+const TOKEN_KEY = 'auth_token';
 
-async function request(method, path, body) {
-  const opts = {
-    method,
-    headers: { 'Content-Type': 'application/json' },
-  };
+function getToken() {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+function getHeaders() {
+  const h = { 'Content-Type': 'application/json' };
+  const token = getToken();
+  if (token) h['Authorization'] = `Bearer ${token}`;
+  return h;
+}
+
+async function req(method, path, body) {
+  const opts = { method, headers: getHeaders() };
   if (body) opts.body = JSON.stringify(body);
-  const res = await fetch(`${API_BASE}${path}`, opts);
+  const res = await fetch(`${API}${path}`, opts);
+  if (res.status === 401) {
+    localStorage.removeItem(TOKEN_KEY);
+    window.location.href = '/asset-sanitation/login';
+    throw new Error('Unauthorized');
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
-    const msg = typeof err.detail === 'string' ? err.detail
-      : err.detail?.error || err.detail?.message || JSON.stringify(err.detail || err)
-      || `HTTP ${res.status}`;
-    throw new Error(msg);
+    throw new Error(err.detail?.error || err.detail?.message || err.detail || res.statusText);
   }
-  if (res.status === 204) return null;
   return res.json();
 }
 
-// ─── Workstations ────────────────────────────────────────────────
+// ── Auth helpers ──────────────────────────────────────────────
 
-export async function getWorkstations(isActive = undefined) {
-  const params = isActive !== undefined ? `?is_active=${isActive}` : '';
-  const data = await request('GET', `/workstations${params}`);
-  return data.data || [];
+export async function getSession() {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    const res = await fetch(`${API}/auth/me`, {
+      headers: getHeaders(),
+    });
+    if (res.status === 401) return null;
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return { username: data.username };
+  } catch {
+    return null;
+  }
 }
 
-export async function getWorkstation(id) {
-  return request('GET', `/workstations/${id}`);
+export async function login(username, password) {
+  const res = await fetch(`${API}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ usr: username, pwd: password }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Login failed' }));
+    throw new Error(err.detail || 'Login failed');
+  }
+  const data = await res.json();
+  localStorage.setItem(TOKEN_KEY, data.token);
+  return { username: data.username };
 }
 
-export async function createWorkstation(payload) {
-  return request('POST', '/workstations', payload);
+export async function logout() {
+  const token = getToken();
+  try {
+    await fetch(`${API}/auth/logout`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+  } finally {
+    localStorage.removeItem(TOKEN_KEY);
+    window.location.href = '/asset-sanitation/login';
+  }
 }
 
-export async function updateWorkstation(id, payload) {
-  return request('PUT', `/workstations/${id}`, payload);
+// ── Workstations ─────────────────────────────────────────────
+
+export async function getWorkstations() {
+  return req('GET', '/workstations/');
+}
+
+export async function createWorkstation(data) {
+  return req('POST', '/workstations/', data);
+}
+
+export async function updateWorkstation(id, data) {
+  return req('PUT', `/workstations/${id}/`, data);
 }
 
 export async function deleteWorkstation(id) {
-  return request('DELETE', `/workstations/${id}`);
+  return req('DELETE', `/workstations/${id}/`);
 }
 
-// ─── Sanitation Orders ────────────────────────────────────────────
+// ── Asset Groups ─────────────────────────────────────────────
 
-export async function getSanitationOrders({ status, assetGroupId, fromDate, toDate } = {}) {
-  const p = new URLSearchParams();
-  if (status) p.set('status', status);
-  if (assetGroupId) p.set('asset_group_id', assetGroupId);
-  if (fromDate) p.set('from_date', fromDate);
-  if (toDate) p.set('to_date', toDate);
-  const qs = p.toString();
-  const data = await request('GET', `/sanitation-orders${qs ? `?${qs}` : ''}`);
-  return data.data || [];
+export async function getAssetGroups() {
+  return req('GET', '/asset-groups/');
+}
+
+export async function getAssetGroup(id) {
+  return req('GET', `/asset-groups/${id}/`);
+}
+
+export async function createAssetGroup(data) {
+  return req('POST', '/asset-groups/', data);
+}
+
+export async function updateAssetGroup(id, data) {
+  return req('PUT', `/asset-groups/${id}/`, data);
+}
+
+export async function deleteAssetGroup(id) {
+  return req('DELETE', `/asset-groups/${id}/`);
+}
+
+export async function getAssetGroupStats(id) {
+  return req('GET', `/asset-groups/${id}/stats/`);
+}
+
+// ── Asset Group Assets (junction table) ───────────────────
+
+export async function getGroupAssets(ag_id) {
+  return req('GET', `/asset-groups/${ag_id}/assets`);
+}
+
+export async function addAssetsToGroup(ag_id, erp_asset_ids) {
+  return req('POST', `/asset-groups/${ag_id}/assets`, { erp_asset_ids });
+}
+
+export async function removeAssetFromGroup(ag_id, erp_asset_id) {
+  return req('DELETE', `/asset-groups/${ag_id}/assets/${erp_asset_id}`);
+}
+
+// ── Sanitation Orders ────────────────────────────────────────
+
+export async function getSanitationOrders(params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  return req('GET', `/sanitation-orders/${qs ? '?' + qs : ''}`);
 }
 
 export async function getSanitationOrder(id) {
-  return request('GET', `/sanitation-orders/${id}`);
+  return req('GET', `/sanitation-orders/${id}`);
 }
 
-export async function updateSanitationOrder(id, payload) {
-  return request('PUT', `/sanitation-orders/${id}`, payload);
+export async function createSanitationOrder(data) {
+  return req('POST', '/sanitation-orders/', data);
 }
 
-export async function completeSanitationOrder(id, payload) {
-  return request('POST', `/sanitation-orders/${id}/complete`, payload);
+export async function updateSanitationOrder(id, data) {
+  return req('PUT', `/sanitation-orders/${id}/`, data);
 }
 
 export async function deleteSanitationOrder(id) {
-  return request('DELETE', `/sanitation-orders/${id}`);
+  return req('DELETE', `/sanitation-orders/${id}/`);
 }
 
-// ─── Utilities ───────────────────────────────────────────────────
-
-export function statusClass(status) {
-  switch (status) {
-    case 'Pending': return 'badge-pending';
-    case 'In Progress': return 'badge-in-progress';
-    case 'Completed': return 'badge-completed';
-    default: return '';
-  }
+export async function startSanitationOrder(id) {
+  return req('POST', `/sanitation-orders/${id}/start/`);
 }
 
-export function typeClass(type) {
-  switch (type) {
-    case 'Allergen-specific': return 'badge-allergen';
-    case 'Normal': return 'badge-normal';
-    case 'Thorough': return 'badge-thorough';
-    default: return '';
-  }
+export async function completeSanitationOrder(id) {
+  return req('POST', `/sanitation-orders/${id}/complete/`);
 }
 
-export function formatDate(d) {
-  if (!d) return '—';
-  return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+export async function cancelSanitationOrder(id) {
+  return req('POST', `/sanitation-orders/${id}/cancel/`);
 }
 
-export function formatDateTime(d) {
-  if (!d) return '—';
-  return new Date(d).toLocaleString('en-US', {
-    year: 'numeric', month: 'short', day: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  });
+// ── Stats ────────────────────────────────────────────────────
+
+export async function getStats() {
+  return req('GET', '/stats/');
 }
 
-// ─── WO Lookup ──────────────────────────────────────────────────
+// ── ERP Assets (local cache for group linking) ───────────────────────
 
-export async function lookupWorkOrder(woName) {
-  return request('GET', `/sanitation/wo-lookup/${encodeURIComponent(woName)}`);
+export async function getErpAssets() {
+  return req('GET', '/erp-assets');
 }
 
-export async function checkBlocking(woName) {
-  return request('GET', `/sanitation/blocking-status/${encodeURIComponent(woName)}`);
+export async function getErpAsset(name) {
+  return req('GET', `/assets/${encodeURIComponent(name)}/`);
 }
 
-
-export async function getWorkOrders() {
-  const data = await request('GET', '/sanitation/wo-list');
-  return data.data || [];
+export async function getErpItems(params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  return req('GET', `/items${qs ? '?' + qs : ''}`);
 }
 
-export async function triggerSanitation(woName) {
-  return request('POST', `/sanitation/trigger/${encodeURIComponent(woName)}`);
+export async function getErpItem(name) {
+  return req('GET', `/items/${encodeURIComponent(name)}`);
 }
 
-// ─── Dashboard Stats ──────────────────────────────────────────────
-
-export async function getSanitationStats() {
-  return request('GET', '/sanitation/stats');
+export async function getErpBoms(params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  return req('GET', `/boms/${qs ? '?' + qs : ''}`);
 }
 
-export async function getRecentOrders(limit = 5) {
-  const data = await request('GET', `/sanitation-orders?limit=${limit}&status=Completed`);
-  return data.data || [];
+export async function getErpBom(name) {
+  return req('GET', `/boms/${encodeURIComponent(name)}`);
 }
 
-export async function getPendingActions(limit = 5) {
-  const data = await request('GET', '/sanitation-orders?status_pending=1&status_in_progress=1');
-  return (data.data || []).slice(0, limit);
+export async function getBomItems(name) {
+  return req('GET', `/boms/${encodeURIComponent(name)}/items`);
+}
+
+export async function getBomWorkOrders(name) {
+  return req('GET', `/boms/${encodeURIComponent(name)}/work-orders`);
+}
+
+export async function getErpWorkOrders(params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  return req('GET', `/work-orders/${qs ? '?' + qs : ''}`);
+}
+
+export async function getErpWorkOrder(name) {
+  return req('GET', `/work-orders/${encodeURIComponent(name)}/`);
+}
+
+export async function getErpWorkstations(params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  return req('GET', `/erp-workstations/${qs ? '?' + qs : ''}`);
 }
