@@ -18,8 +18,8 @@ function AddAssetModal({ agId, linkedAssets, onSave, onClose }) {
   }, [])
 
   // Build set of already-linked ERPNext asset names
-  const linkedNames = new Set(linkedAssets.map(a => a.erp_asset_name))
-  const available = assets.filter(a => !linkedNames.has(a.erp_asset_name))
+  const linkedNames = new Set(linkedAssets.map(a => a.name))
+  const available = assets.filter(a => !linkedNames.has(a.name))
 
   function toggle(name) {
     const next = new Set(selected)
@@ -32,7 +32,7 @@ function AddAssetModal({ agId, linkedAssets, onSave, onClose }) {
     if (selected.size === 0) return
     setSaving(true)
     // selected contains erp_asset_names; resolve to integer IDs via the loaded erp_assets
-    const nameToId = Object.fromEntries(assets.map(a => [a.erp_asset_name, a.id]))
+    const nameToId = Object.fromEntries(assets.map(a => [a.name, a.id]))
     const erp_asset_ids = Array.from(selected).map(n => nameToId[n]).filter(Boolean)
     try {
       await addAssetsToGroup(agId, erp_asset_ids)
@@ -53,13 +53,13 @@ function AddAssetModal({ agId, linkedAssets, onSave, onClose }) {
             <div className={styles.empty}>All assets already linked to this group</div>
           ) : (
             available.map(a => (
-              <label key={a.erp_asset_name} className={styles.assetRow}>
+              <label key={a.name} className={styles.assetRow}>
                 <input
                   type="checkbox"
-                  checked={selected.has(a.erp_asset_name)}
-                  onChange={() => toggle(a.erp_asset_name)}
+                  checked={selected.has(a.name)}
+                  onChange={() => toggle(a.name)}
                 />
-                <span>{a.erp_asset_name || a.asset_name}</span>
+                <span>{a.name || a.asset_name}</span>
                 <span className={styles.assetMeta}>{a.asset_category || '—'} · {a.location || 'No location'}</span>
               </label>
             ))
@@ -159,7 +159,7 @@ export default function AssetGroupDetail() {
                 <tr key={a.erp_asset_id}>
                   <td>
                     <div className={styles.assetName}>{a.asset_name}</div>
-                    <div className={styles.assetId}>{a.erp_asset_name}</div>
+                    <div className={styles.assetId}>{a.name}</div>
                   </td>
                   <td>{a.asset_category || '—'}</td>
                   <td>{a.location || '—'}</td>
