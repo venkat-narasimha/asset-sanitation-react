@@ -123,7 +123,7 @@ export default function AssetGroups() {
                   <span className={styles.cardName}>{g.group_name}</span>
                   <span className={styles.cardStatus} style={{ color: STATUS_COLORS[g.status] }}>{g.status}</span>
                 </div>
-                <div className={styles.cardDesc}>{g.description || '—'}</div>
+                <div className={styles.cardDesc}>{g.asset_count || 0} asset{g.asset_count !== 1 ? "s" : ""}</div>
               </div>
             </Link>
           ))}

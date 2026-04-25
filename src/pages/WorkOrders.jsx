@@ -83,6 +83,7 @@ export default function WorkOrders() {
     try {
       const res = await createSanitationOrder({ asset_group_id: selectedGroup, production_order: modal.wo_name })
       setModal(null)
+      fetchData()
       setSelectedGroup('')
       if (res?.data?.id) navigate(`/orders/${res.data.id}`)
     } catch (err) {

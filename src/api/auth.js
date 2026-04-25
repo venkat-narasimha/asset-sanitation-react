@@ -28,7 +28,11 @@ export async function getSession() {
     if (res.status === 401) return null;
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    return { username: data.username };
+    return {
+      name: data.username,
+      full_name: data.full_name || data.username,
+      home_page: data.home_page || '',
+    };
   } catch {
     return null;
   }

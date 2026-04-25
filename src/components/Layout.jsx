@@ -13,7 +13,6 @@ const nav = {
     { to: '/items', label: 'Items', icon: '📦' },
     { to: '/boms', label: 'BOMs', icon: '📋' },
     { to: '/assets', label: 'Assets', icon: '🏗️' },
-    { to: '/workstations', label: 'Workstations', icon: '🔧' },
   ],
   'Account': [
     { to: '/profile', label: 'Profile', icon: '👤' },

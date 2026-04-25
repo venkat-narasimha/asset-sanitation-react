@@ -13,7 +13,6 @@ import WorkOrders from './pages/WorkOrders.jsx'
 import Items from './pages/Items.jsx'
 import Boms from './pages/Boms.jsx'
 import Assets from './pages/Assets.jsx'
-import Workstations from './pages/Workstations.jsx'
 import Profile from './pages/Profile.jsx'
 import './styles/base.css'
 
@@ -41,7 +40,6 @@ function App() {
               <Route path="items" element={<Items />} />
               <Route path="boms" element={<Boms />} />
               <Route path="assets" element={<Assets />} />
-              <Route path="workstations" element={<Workstations />} />
               <Route path="profile" element={<Profile />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>

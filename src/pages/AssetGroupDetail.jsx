@@ -6,8 +6,10 @@ import styles from './AssetGroupDetail.module.css'
 function AddAssetModal({ agId, linkedAssets, onSave, onClose }) {
   const [assets, setAssets] = useState([])
   const [loading, setLoading] = useState(true)
-  const [selected, setSelected] = useState(new Set())
+  const [selected, setSelected] = useState([])     // array, not Set
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
     fetch('https://pbapps.duckdns.org/api/v1/erp-assets')
@@ -17,26 +19,51 @@ function AddAssetModal({ agId, linkedAssets, onSave, onClose }) {
       .finally(() => setLoading(false))
   }, [])
 
-  // Build set of already-linked ERPNext asset names
-  const linkedNames = new Set(linkedAssets.map(a => a.name))
+  // Build set of already-linked ERPNext asset names (erp_asset_name on linkedAssets, name on all assets)
+  const linkedNames = new Set(linkedAssets.map(a => a.erp_asset_name))
   const available = assets.filter(a => !linkedNames.has(a.name))
 
-  function toggle(name) {
-    const next = new Set(selected)
-    if (next.has(name)) next.delete(name)
-    else next.add(name)
-    setSelected(next)
+  // Apply search filter
+  const filtered = available.filter(a => {
+    if (!search) return true
+    const q = search.toLowerCase()
+    return (a.name || '').toLowerCase().includes(q) ||
+      (a.asset_name || '').toLowerCase().includes(q) ||
+      (a.asset_category || '').toLowerCase().includes(q) ||
+      (a.location || '').toLowerCase().includes(q)
+  })
+
+  // Group by category
+  const groups = {}
+  filtered.forEach(a => {
+    const cat = a.asset_category || 'Other'
+    if (!groups[cat]) groups[cat] = []
+    groups[cat].push(a)
+  })
+
+  function toggle(id) {
+    if (selected.includes(id)) {
+      setSelected(selected.filter(s => s !== id))
+    } else {
+      setSelected([...selected, id])
+    }
   }
 
   async function handleSave() {
-    if (selected.size === 0) return
+    if (selected.length === 0) return
+    setError(null)
     setSaving(true)
-    // selected contains erp_asset_names; resolve to integer IDs via the loaded erp_assets
-    const nameToId = Object.fromEntries(assets.map(a => [a.name, a.id]))
-    const erp_asset_ids = Array.from(selected).map(n => nameToId[n]).filter(Boolean)
     try {
-      await addAssetsToGroup(agId, erp_asset_ids)
+      const data = await addAssetsToGroup(agId, selected)
+      if (!data?.success) {
+        const msg = data?.invalid_ids
+          ? `Invalid asset IDs: ${data.invalid_ids.join(', ')}`
+          : (data?.detail || 'Failed to link assets')
+        throw new Error(msg)
+      }
       onSave()
+    } catch (err) {
+      setError(err.message || 'Something went wrong')
     } finally {
       setSaving(false)
     }
@@ -44,35 +71,70 @@ function AddAssetModal({ agId, linkedAssets, onSave, onClose }) {
 
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
-      <div className={styles.modal} onClick={e => e.stopPropagation()}>
-        <h2 className={styles.modalTitle}>Add ERPNext Assets</h2>
-        <div className={styles.assetList}>
+      <div className={styles.cardModal} onClick={e => e.stopPropagation()}>
+        <div className={styles.cardModalHeader}>
+          <div>
+            <h2 className={styles.modalTitle}>Add ERPNext Assets</h2>
+            <p className={styles.modalSub}>{available.length} available · {selected.length} selected</p>
+          </div>
+          <button className={styles.closeBtn} onClick={onClose}>✕</button>
+        </div>
+
+        <div className={styles.cardSearchWrap}>
+          <span className={styles.searchIcon}>🔍</span>
+          <input
+            className={styles.cardSearch}
+            placeholder="Search assets..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
+
+        <div className={styles.cardGridWrap}>
           {loading ? (
             <div className={styles.loading}>Loading assets...</div>
-          ) : available.length === 0 ? (
-            <div className={styles.empty}>All assets already linked to this group</div>
+          ) : filtered.length === 0 ? (
+            <div className={styles.empty}>No assets found</div>
           ) : (
-            available.map(a => (
-              <label key={a.name} className={styles.assetRow}>
-                <input
-                  type="checkbox"
-                  checked={selected.has(a.name)}
-                  onChange={() => toggle(a.name)}
-                />
-                <span>{a.name || a.asset_name}</span>
-                <span className={styles.assetMeta}>{a.asset_category || '—'} · {a.location || 'No location'}</span>
-              </label>
+            Object.entries(groups).sort(([a], [b]) => a.localeCompare(b)).map(([category, items]) => (
+              <div key={category} className={styles.cardGroup}>
+                <div className={styles.cardGroupLabel}>{category}</div>
+                <div className={styles.cardGrid}>
+                  {items.map(a => (
+                    <div
+                      key={a.id}
+                      className={`${styles.assetCard} ${selected.includes(a.id) ? styles.assetCardSelected : ''}`}
+                      onClick={() => toggle(a.id)}
+                    >
+                      <div className={styles.assetCardCheck}>
+                        {selected.includes(a.id) ? '✅' : '○'}
+                      </div>
+                      <div className={styles.assetCardName}>{a.asset_name || a.name}</div>
+                      <div className={styles.assetCardMeta}>{a.name}</div>
+                      <div className={styles.assetCardLocation}>{a.location || 'No location'}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             ))
           )}
         </div>
-        <div className={styles.modalActions}>
+
+        {error && (
+          <div className={styles.saveError}>
+            <span className={styles.saveErrorIcon}>⚠️</span>
+            <span>{error}</span>
+          </div>
+        )}
+
+        <div className={styles.cardModalFooter}>
           <button className={styles.cancelBtn} onClick={onClose}>Cancel</button>
           <button
             className={styles.saveBtn}
-            disabled={selected.size === 0 || saving}
+            disabled={selected.length === 0 || saving}
             onClick={handleSave}
           >
-            {saving ? 'Linking...' : `Link ${selected.size} Asset${selected.size !== 1 ? 's' : ''}`}
+            {saving ? 'Linking...' : `Link ${selected.length} Asset${selected.length !== 1 ? 's' : ''}`}
           </button>
         </div>
       </div>
@@ -95,7 +157,7 @@ export default function AssetGroupDetail() {
       const aRes = await getGroupAssets(id)
       const gData = gRes.data?.group || gRes.data || {}
       setGroup(gData)
-      setLinkedAssets(gRes.data?.linked_assets || aRes.data || [])
+      setLinkedAssets(aRes.assets || [])
     } finally {
       setLoading(false)
     }
@@ -105,7 +167,7 @@ export default function AssetGroupDetail() {
 
   async function handleUnlink(asset) {
     if (!confirm(`Remove "${asset.asset_name}" from this group?`)) return
-    setRemoving(asset.erp_asset_id)
+    setRemoving(asset.id)
     try {
       await removeAssetFromGroup(id, asset.erp_asset_id)
       load()
@@ -159,7 +221,7 @@ export default function AssetGroupDetail() {
                 <tr key={a.erp_asset_id}>
                   <td>
                     <div className={styles.assetName}>{a.asset_name}</div>
-                    <div className={styles.assetId}>{a.name}</div>
+                    <div className={styles.assetId}>{a.erp_asset_name}</div>
                   </td>
                   <td>{a.asset_category || '—'}</td>
                   <td>{a.location || '—'}</td>
