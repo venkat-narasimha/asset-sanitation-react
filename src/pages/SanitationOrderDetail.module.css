@@ -93,3 +93,18 @@
 .timestamps { display: flex; flex-direction: column; gap: 0.5rem; }
 .tsRow { display: flex; gap: 1rem; font-size: 0.875rem; }
 .tsLabel { color: #64748b; min-width: 80px; }
+.groupInfo { margin-bottom: 0.75rem; }
+.groupLink {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: #f0fdfa; color: #0d9488;
+  border: 1px solid #99f6e4; border-radius: 8px;
+  font-size: 0.9375rem; font-weight: 600;
+  text-decoration: none;
+}
+.groupLink:hover { background: #ccfbf1; }
+.noGroup { color: #94a3b8; }
+.woRow { display: flex; align-items: center; gap: 0.75rem; padding-top: 0.5rem; border-top: 1px solid #f1f5f9; }
+.woLabel { font-size: 0.75rem; font-weight: 500; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
+.woValue { font-size: 0.875rem; font-weight: 600; color: #1e293b; }
+

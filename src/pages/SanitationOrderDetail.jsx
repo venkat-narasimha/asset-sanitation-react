@@ -74,7 +74,7 @@ export default function SanitationOrderDetail() {
 
       <div className={styles.header}>
         <div>
-          <h1 className={styles.title}>Order #{id}</h1>
+          <h1 className={styles.title}>Order #${id}</h1>
           <p className={styles.group}>{order.group_name || '—'}</p>
         </div>
         <div className={styles.headerRight}>
@@ -87,16 +87,11 @@ export default function SanitationOrderDetail() {
         </div>
       </div>
 
-      {/* 3-Step Progress */}
       <div className={styles.card}>
         <div className={styles.progressRow}>
           {STEPS.map((step, i) => (
             <React.Fragment key={step}>
-              <ProgressStep
-                label={step}
-                active={i === stepIndex}
-                completed={i < stepIndex}
-              />
+              <ProgressStep label={step} active={i === stepIndex} completed={i < stepIndex} />
               {i < STEPS.length - 1 && (
                 <div className={`${styles.connector} ${i < stepIndex ? styles.connectorDone : ''}`} />
               )}
@@ -105,7 +100,25 @@ export default function SanitationOrderDetail() {
         </div>
       </div>
 
-      {/* Timer + Actions */}
+      <div className={styles.card}>
+        <h2 className={styles.cardTitle}>Asset Group</h2>
+        <div className={styles.groupInfo}>
+          {order.group_name ? (
+            <Link to={`/asset-groups/${order.asset_group_id}`} className={styles.groupLink}>
+              🧹 {order.group_name}
+            </Link>
+          ) : (
+            <span className={styles.noGroup}>—</span>
+          )}
+        </div>
+        {order.production_order && (
+          <div className={styles.woRow}>
+            <span className={styles.woLabel}>Work Order</span>
+            <span className={styles.woValue}>{order.production_order}</span>
+          </div>
+        )}
+      </div>
+
       <div className={styles.card}>
         <div className={styles.timerRow}>
           <div>
@@ -114,7 +127,7 @@ export default function SanitationOrderDetail() {
           </div>
           <div className={styles.actions}>
             {order.status === 'Pending' && (
-              <button className={styles.startBtn} onClick={() => alert('Coming Soon — start feature is under development.')} disabled={acting}>
+              <button className={styles.startBtn} onClick={() => alert('Coming Soon')} disabled={acting}>
                 Start Sanitation
               </button>
             )}
@@ -132,7 +145,6 @@ export default function SanitationOrderDetail() {
         </div>
       </div>
 
-      {/* Checklist */}
       <div className={styles.card}>
         <h2 className={styles.cardTitle}>Sanitation Checklist</h2>
         <div className={styles.checklist}>
@@ -147,7 +159,6 @@ export default function SanitationOrderDetail() {
         </div>
       </div>
 
-      {/* Timestamps */}
       <div className={styles.card}>
         <h2 className={styles.cardTitle}>Timestamps</h2>
         <div className={styles.timestamps}>
